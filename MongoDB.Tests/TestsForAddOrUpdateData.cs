@@ -22,10 +22,7 @@ namespace MongoDB.Tests
         [TestMethod]
         public async Task Test_IsCorrect_BookAdd()
         {
-            foreach(var book in GetBookCollection())
-            {
-                await client.AddBookAsync(book); 
-            }
+            await client.AddBooks(GetBookCollection());
             Assert.IsNotNull(await client.GetAllBooks());
         }
 

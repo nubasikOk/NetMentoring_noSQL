@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace MongoDB.Tests
 {
+    [TestClass]
     class TestsForDeleteData
     {
         string connectionString;

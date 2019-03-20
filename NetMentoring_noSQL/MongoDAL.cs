@@ -11,36 +11,35 @@ namespace NetMentoring_noSQL
 {
     public class MongoDAL
     {
-        private string _connection;
-        IMongoDatabase db;
+      
+        
+        private IMongoCollection<Book> collection { get; set; }
+
+        private BsonDocument filter { get; set; }
+
         public MongoDAL(string connection)
         {
-            _connection = connection;
-            var client = new MongoClient(_connection);
-
-            db = client.GetDatabase("Library");
+            var client = new MongoClient(connection);
+            var db = client.GetDatabase("Library");
+            collection = db.GetCollection<Book>("books");
+            filter = new BsonDocument();
         }
 
-        public async Task AddBookAsync(Book item)
+        public async Task AddBooks(IEnumerable<Book> items)
         {
-            var collection = db.GetCollection<Book>("books");
-            
-            var newBook = CreateNewBook(item);
-            
-            await collection.InsertOneAsync(newBook);
+            await collection.InsertManyAsync(items);
         }
         public async Task<List<Book>> GetAllBooks()
         {
-            var filter = new BsonDocument();
-            return await db.GetCollection<Book>("books").Find(filter)
-                                                        .Sort(Builders<Book>.Sort.Ascending("Name"))
-                                                        .ToListAsync();
+            return await collection.Find(filter)
+                                   .Sort(Builders<Book>.Sort.Ascending("Name"))
+                                   .ToListAsync();
         }
 
 
         public  async Task<List<Book>> GetBooksByCount(int count)
         {
-          return await db.GetCollection<Book>("books").Find(book=> book.Count > count)
+          return await collection.Find(book=> book.Count > count)
                                                       .Sort(Builders<Book>.Sort.Ascending("Name"))
                                                       .Limit(3)
                                                       .ToListAsync();
@@ -48,9 +47,7 @@ namespace NetMentoring_noSQL
 
         public async Task<Book> GetBookWithMaxCount()
         {
-            var filter = new BsonDocument();
-
-            return await db.GetCollection<Book>("books")
+            return await collection
                         .Find(filter)
                         .Sort(Builders<Book>.Sort.Descending("Count"))
                         .FirstOrDefaultAsync();
@@ -58,20 +55,15 @@ namespace NetMentoring_noSQL
 
         public async Task<Book> GetBookWithMinCount()
         {
-            var filter = new BsonDocument();
-
-            return await db.GetCollection<Book>("books")
+            return await collection
                         .Find(filter)
                         .Sort(Builders<Book>.Sort.Ascending("Count"))
                         .FirstOrDefaultAsync();
         }
 
-        public async Task<List<string>> GetBookAuthors()
+        public async Task<HashSet<string>> GetBookAuthors()
         {
-            List<string> authors = new List<string>();
-            var filter = new BsonDocument();
-
-            var collection = db.GetCollection<Book>("books");
+            HashSet<string> authors = new HashSet<string>();
             using (var cursor = await collection.FindAsync(filter))
             {
                 while (await cursor.MoveNextAsync())
@@ -80,60 +72,47 @@ namespace NetMentoring_noSQL
                     foreach (var item in books)
                     {
                         if(!string.IsNullOrEmpty(item.Author))
-                        authors.Add(item.Author);
+
+                            authors.Add(item.Author);
                     }
                 }
             }
-            return authors.Distinct().ToList();
+            return authors;
         }
 
         public async Task<List<Book>> GetBookWithoutAuthors()
         {
-            return await db.GetCollection<Book>("books")
+            return await collection
                         .Find(book => string.IsNullOrEmpty(book.Author))
                         .ToListAsync();
                         
         }
         public async Task IncreaseBookCount(int count)
         {
-            var filter = new BsonDocument();
-            var updoneresult = await db.GetCollection<Book>("books").UpdateManyAsync(
+            var updoneresult = await collection.UpdateManyAsync(
                                filter,
                                Builders<Book>.Update.Inc("Count", count));
         }
         public async Task AddNewGenre()
         {
-            var updoneresult = await db.GetCollection<Book>("books").UpdateManyAsync(
+            var updoneresult = await collection.UpdateManyAsync(
                                book=>(book.Genre== "fantasy"&& book.Genre != "favority"),
                                Builders<Book>.Update.Set("Genre", "favority"));
         }
 
         public async Task<long> DeleteBookWithCount(int count)
         {
-            var deleteResult = await db.GetCollection<Book>("books").DeleteManyAsync(
+            var deleteResult = await collection.DeleteManyAsync(
                              b=>b.Count<count);
             return deleteResult.DeletedCount;
         }
 
         public async Task DeleteAllBooks()
         {
-            var filter = new BsonDocument();
-            var deleteResult = await db.GetCollection<Book>("books").DeleteManyAsync(filter);
+            var deleteResult = await collection.DeleteManyAsync(filter);
         }
 
-        private Book  CreateNewBook(Book item)
-        {
-            var newBook = new Book
-            {
-               Name=item.Name,
-               Author= item.Author,
-               Count = item.Count,
-               Genre=item.Genre,
-               Year=item.Year
-            };
-            return newBook;
-        }
-
+      
 
 
     }
