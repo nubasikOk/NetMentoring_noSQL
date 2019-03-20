@@ -101,7 +101,12 @@ namespace NetMentoring_noSQL
                                filter,
                                Builders<Book>.Update.Inc("Count", count));
         }
-
+        public async Task AddNewGenre()
+        {
+            var updoneresult = await db.GetCollection<Book>("books").UpdateManyAsync(
+                               book=>(book.Genre== "fantasy"&& book.Genre != "favority"),
+                               Builders<Book>.Update.Set("Genre", "favority"));
+        }
 
         public async Task<long> DeleteBookWithCount(int count)
         {
